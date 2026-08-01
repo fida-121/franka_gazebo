@@ -137,7 +137,7 @@ More thorough information is available in the documentation.
 
 13. To open a **second** terminal into the same running container later (open a new WSL/Ubuntu terminal window, then run):
     ```bash
-    docker exec -it --user developer multipanda-container /bin/bash -c "source /home/developer/.bashrc && bash"
+    docker exec -it --user developer gazebo-container /bin/bash -c "source /home/developer/.bashrc && bash"
     ```
 
 ---
@@ -203,7 +203,7 @@ rosdep install --from-paths src --ignore-src -y -r
 
 To open the docker container in an additional terminal, use the `docker exec` command:
 ```bash
-docker exec -it --user developer multipanda-container bash
+docker exec -it --user developer gazebo-container bash
 ```
 
 ---
