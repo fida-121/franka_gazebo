@@ -257,12 +257,12 @@ The gripper is exposed as a standard `control_msgs/action/GripperCommand` action
 
 **Open Gripper:**
 ```bash
-ros2 action send_goal /panda_hand_controller/gripper_cmd control_msgs/action/GripperCommand "{command: {position: 0.04, max_effort: 20.0}}"
+ros2 topic pub /panda_hand_controller/joint_trajectory trajectory_msgs/msg/JointTrajectory "{joint_names: ['panda_finger_joint1', 'panda_finger_joint2'], points: [{positions: [0.04, 0.04], time_from_start: {sec: 1}}]}" --once
 ```
 
 **Close / Grasp:**
 ```bash
-ros2 action send_goal /panda_hand_controller/gripper_cmd control_msgs/action/GripperCommand "{command: {position: 0.0, max_effort: 20.0}}"
+ros2 topic pub /panda_hand_controller/joint_trajectory trajectory_msgs/msg/JointTrajectory "{joint_names: ['panda_finger_joint1', 'panda_finger_joint2'], points: [{positions: [0.0, 0.0], time_from_start: {sec: 1}}]}" --once
 ```
 
 ---
