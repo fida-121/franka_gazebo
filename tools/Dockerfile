@@ -15,7 +15,7 @@ ARG WS_NAME=multipanda_ws
 RUN groupadd --gid $USER_GID developer || true && \
     useradd --uid $USER_UID --gid $USER_GID --create-home developer && \
     echo 'root:install' | chpasswd && \
-    echo 'developer:123' | chpasswd && \
+    echo 'developer:0102' | chpasswd && \
     apt-get update && apt-get install -y \
     software-properties-common build-essential cmake git wget curl zip sudo \
     nano net-tools lsof pulseaudio iputils-ping iproute2 libpoco-dev \

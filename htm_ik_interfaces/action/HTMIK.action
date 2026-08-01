@@ -1,0 +1,14 @@
+# Goal: 4x4 homogeneous transform matrix, ROW-MAJOR (16 floats).
+# i.e. htm[0:4]   = row 0  (Rxx Rxy Rxz  x)
+#      htm[4:8]   = row 1  (Ryx Ryy Ryz  y)
+#      htm[8:12]  = row 2  (Rzx Rzy Rzz  z)
+#      htm[12:16] = row 3  (0   0   0    1)
+float64[16] htm
+---
+# Result
+bool success
+string message
+float64 fraction  # fraction of the Cartesian path that was actually planned (0.0-1.0)
+---
+# Feedback
+string status

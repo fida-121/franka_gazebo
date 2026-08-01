@@ -18,7 +18,7 @@ REPO_NAME=$(basename "$REPO_PATH")
 REPO_PATH=$(git rev-parse --show-toplevel)
 REPO_NAME=$(basename "$REPO_PATH")
 IMAGE_NAME="build-env"
-CONTAINER_NAME="multipanda-container"
+CONTAINER_NAME="gazebo-container"
 
 # Detect Architecture
 ARCH=$(uname -m)

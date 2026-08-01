@@ -29,11 +29,15 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
+    joint_impedance_controller:              # <-- add this block
+      type: franka_example_controllers/JointImpedanceController
+
     franka_robot_state_broadcaster:
       type: franka_robot_state_broadcaster/FrankaRobotStateBroadcaster
 
     model_example_controller:
       type: franka_example_controllers/ModelExampleController
+
     
 
 franka_robot_state_broadcaster:
@@ -121,3 +125,22 @@ joint_velocity_example_controller:
 cartesian_velocity_example_controller:
   ros__parameters:
     arm_id: panda
+joint_impedance_controller:                   # <-- and this params block
+  ros__parameters:
+    arm_id: panda
+    k_gains:
+      - 600.0
+      - 600.0
+      - 600.0
+      - 600.0
+      - 250.0
+      - 150.0
+      - 50.0
+    d_gains:
+      - 30.0
+      - 30.0
+      - 30.0
+      - 30.0
+      - 10.0
+      - 10.0
+      - 5.0

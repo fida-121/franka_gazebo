@@ -1,0 +1,19 @@
+digraph G {
+"panda_hand" -> "panda_leftfinger"[label=" Broadcaster: default_authority\nAverage rate: 15.2\nBuffer length: 5.0\nMost recent transform: 1785336638.240219\nOldest transform: 1785336633.240271\n"];
+"panda_link8" -> "panda_hand"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"panda_hand" -> "panda_rightfinger"[label=" Broadcaster: default_authority\nAverage rate: 15.2\nBuffer length: 5.0\nMost recent transform: 1785336638.240219\nOldest transform: 1785336633.240271\n"];
+"panda_link0" -> "panda_link1"[label=" Broadcaster: default_authority\nAverage rate: 15.2\nBuffer length: 5.0\nMost recent transform: 1785336638.240219\nOldest transform: 1785336633.240271\n"];
+"world" -> "panda_link0"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"panda_link1" -> "panda_link2"[label=" Broadcaster: default_authority\nAverage rate: 15.2\nBuffer length: 5.0\nMost recent transform: 1785336638.240219\nOldest transform: 1785336633.240271\n"];
+"panda_link2" -> "panda_link3"[label=" Broadcaster: default_authority\nAverage rate: 15.2\nBuffer length: 5.0\nMost recent transform: 1785336638.240219\nOldest transform: 1785336633.240271\n"];
+"panda_link3" -> "panda_link4"[label=" Broadcaster: default_authority\nAverage rate: 15.2\nBuffer length: 5.0\nMost recent transform: 1785336638.240219\nOldest transform: 1785336633.240271\n"];
+"panda_link4" -> "panda_link5"[label=" Broadcaster: default_authority\nAverage rate: 15.2\nBuffer length: 5.0\nMost recent transform: 1785336638.240219\nOldest transform: 1785336633.240271\n"];
+"panda_link5" -> "panda_link6"[label=" Broadcaster: default_authority\nAverage rate: 15.2\nBuffer length: 5.0\nMost recent transform: 1785336638.240219\nOldest transform: 1785336633.240271\n"];
+"panda_link6" -> "panda_link7"[label=" Broadcaster: default_authority\nAverage rate: 15.2\nBuffer length: 5.0\nMost recent transform: 1785336638.240219\nOldest transform: 1785336633.240271\n"];
+"panda_link7" -> "panda_link8"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"panda_hand" -> "panda_hand_tcp"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1785336638.2832935"[ shape=plaintext ] ;
+}->"world";
+}

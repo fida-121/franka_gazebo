@@ -12,50 +12,61 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-# This file is an adapted version of
-# https://github.com/ros-planning/moveit_resources/blob/ca3f7930c630581b5504f3b22c40b4f82ee6369d/panda_moveit_config/launch/demo.launch.py
+# Adapted from panda_arm_sim demo.launch.py (MuJoCo) to run on Gazebo Sim (Fortress)
+# with OMPL + CHOMP as selectable planning pipelines.
+#
+# BEFORE RUNNING THIS FILE, MAKE SURE:
+#   1. franka_moveit_config/config/panda_controllers.yaml has:
+#        panda_arm_controller:      default: true
+#        joint_impedance_controller: default: false
+#      (currently the reverse -- MoveIt will otherwise keep targeting the
+#      impedance controller no matter what you spawn in Gazebo)
+#   2. franka_moveit_config/config/sim_gazebo_panda_ros_controllers.yaml exists
+#      (copy of sim_panda_ros_controllers.yaml)
+#   3. franka_moveit_config/config/chomp_planning.yaml exists
+#   4. franka_description/robots/sim/panda_arm_gazebo.urdf.xacro and
+#      panda_arm_gazebo.ros2_control.xacro exist (from the previous message)
+#   5. ros-humble-gz-ros2-control, ros-humble-ros-gz-sim, ros-humble-moveit-planners-chomp
+#      are installed
 
 import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import (DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription,
-                            Shutdown)
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, Shutdown
 from launch.conditions import IfCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource, FrontendLaunchDescriptionSource
-from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import Command, FindExecutable, LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
+from launch_ros.parameter_descriptions import ParameterValue
+from launch.actions import SetEnvironmentVariable
 import yaml
 
+
 def concatenate_ns(ns1, ns2, absolute=False):
-    
-    if(len(ns1) == 0):
+    if len(ns1) == 0:
         return ns2
-    if(len(ns2) == 0):
+    if len(ns2) == 0:
         return ns1
-    
-    # check for /s at the end and start
-    if(ns1[0] == '/'):
+    if ns1[0] == '/':
         ns1 = ns1[1:]
-    if(ns1[-1] == '/'):
+    if ns1[-1] == '/':
         ns1 = ns1[:-1]
-    if(ns2[0] == '/'):
+    if ns2[0] == '/':
         ns2 = ns2[1:]
-    if(ns2[-1] == '/'):
+    if ns2[-1] == '/':
         ns2 = ns2[:-1]
-    if(absolute):
+    if absolute:
         ns1 = '/' + ns1
     return ns1 + '/' + ns2
+
 
 def load_yaml(package_name, file_path):
     package_path = get_package_share_directory(package_name)
     absolute_file_path = os.path.join(package_path, file_path)
-
     try:
         with open(absolute_file_path, 'r') as file:
             return yaml.safe_load(file)
-    except EnvironmentError:  # parent of IOError, OSError *and* WindowsError where available
+    except EnvironmentError:
         return None
 
 
@@ -64,7 +75,7 @@ def generate_launch_description():
     # Parameters as launch arguments
     arm_id_param = 'arm_id'
     initial_positions_param = 'initial_positions'
-    
+
     arm_id = LaunchConfiguration(arm_id_param)
     initial_positions = LaunchConfiguration(initial_positions_param)
 
@@ -73,31 +84,35 @@ def generate_launch_description():
         'db', default_value='False', description='Database flag'
     )
 
-    # Fixed variables
-    load_gripper = True # We make gripper a fixed variable, mainly because parsing the argument 
-                        # within generate_launch_description is a fairly unintuitive process, 
-                        # and it's not worth doing just for a single boolean.
-    
-    if(load_gripper): # mujoco scene file must be manually adjusted since there's no way to pass parameters
-        scene_file = 'scene.xml'
-    else:
-        scene_file = 'scene_ng.xml'
+    load_gripper = True  # arm-only ros2_control for now -- see note at bottom of chat
+    use_sim_time = {'use_sim_time': True}
 
-    # planning_context
-    franka_xacro_file = os.path.join(get_package_share_directory('franka_description'), 'robots', 'sim',
-                                     'panda_arm_sim.urdf.xacro')
-    xml_file = os.path.join(get_package_share_directory('franka_description'), 'mujoco', 'franka', scene_file)
+    # ---- Robot description (Gazebo variant) ----
+    franka_xacro_file = os.path.join(
+        get_package_share_directory('franka_description'), 'robots', 'sim',
+        'panda_arm_gazebo.urdf.xacro')
     franka_bringup_path = get_package_share_directory('franka_bringup')
 
+    set_ign_resource_path = SetEnvironmentVariable(
+        'IGN_GAZEBO_RESOURCE_PATH',
+        os.path.join(get_package_share_directory('franka_description'), '..')
+    )
 
+    set_ign_plugin_path = SetEnvironmentVariable(
+        'IGN_GAZEBO_SYSTEM_PLUGIN_PATH',
+        '/opt/ros/humble/lib'
+    )
     robot_description_config = Command(
-        [FindExecutable(name='xacro'), ' ', franka_xacro_file, 
+        [FindExecutable(name='xacro'), ' ', franka_xacro_file,
          ' arm_id:=', arm_id,
          ' hand:=', str(load_gripper).lower(),
          ' initial_positions:=', initial_positions])
 
-    robot_description = {'robot_description': robot_description_config}
+    robot_description = {
+        'robot_description': ParameterValue(robot_description_config, value_type=str)
+    }
 
+    # ---- Semantic description (unchanged) ----
     franka_semantic_xacro_file = os.path.join(get_package_share_directory('franka_moveit_config'),
                                               'srdf',
                                               'panda_arm.srdf.xacro')
@@ -105,16 +120,29 @@ def generate_launch_description():
         [FindExecutable(name='xacro'), ' ', franka_semantic_xacro_file, ' hand:=', str(load_gripper).lower()]
     )
     robot_description_semantic = {
-        'robot_description_semantic': robot_description_semantic_config
+        'robot_description_semantic': ParameterValue(robot_description_semantic_config, value_type=str)
     }
 
     kinematics_yaml = load_yaml(
         'franka_moveit_config', 'config/kinematics.yaml'
     )
 
-    # Planning Functionality
+    # ---- Planning pipelines: OMPL + CHOMP, both selectable at runtime in RViz ----
+    # NOTE: these dicts must NOT be wrapped in an extra 'move_group': {...} key.
+    # move_group_node is already the node these parameters get attached to --
+    # adding 'move_group' as a key here creates the parameter
+    # 'move_group.planning_pipelines...' instead of 'planning_pipelines...',
+    # which MoveIt silently never finds. That was the root cause of the
+    # pipeline selector never working and CHOMP always being force-picked.
+    planning_pipelines_config = {
+        'planning_pipelines': {
+            'pipeline_names': ['ompl', 'chomp'],
+        },
+        'default_planning_pipeline': 'ompl',
+    }
+
     ompl_planning_pipeline_config = {
-        'move_group': {
+        'ompl': {
             'planning_plugin': 'ompl_interface/OMPLPlanner',
             'request_adapters': 'default_planner_request_adapters/AddTimeOptimalParameterization '
                                 'default_planner_request_adapters/ResolveConstraintFrames '
@@ -128,9 +156,32 @@ def generate_launch_description():
     ompl_planning_yaml = load_yaml(
         'franka_moveit_config', 'config/ompl_planning.yaml'
     )
-    ompl_planning_pipeline_config['move_group'].update(ompl_planning_yaml)
+    ompl_planning_pipeline_config['ompl'].update(ompl_planning_yaml)
 
-    # Trajectory Execution Functionality
+    chomp_planning_pipeline_config = {
+        'chomp': {
+            'planning_plugin': 'chomp_interface/CHOMPPlanner',
+            'request_adapters': 'default_planner_request_adapters/AddTimeOptimalParameterization '
+                                'default_planner_request_adapters/ResolveConstraintFrames '
+                                'default_planner_request_adapters/FixWorkspaceBounds '
+                                'default_planner_request_adapters/FixStartStateBounds '
+                                'default_planner_request_adapters/FixStartStateCollision '
+                                'default_planner_request_adapters/FixStartStatePathConstraints',
+            'start_state_max_bounds_error': 0.1,
+        }
+    }
+    chomp_planning_yaml = load_yaml(
+        'franka_moveit_config', 'config/chomp_planning.yaml'
+    )
+    chomp_planning_pipeline_config['chomp'].update(chomp_planning_yaml)
+
+    robot_description_planning = {
+        'robot_description_planning': load_yaml(
+            'franka_moveit_config', 'config/joint_limits.yaml'
+        )
+    }
+
+    # ---- Trajectory execution: panda_arm_controller (make sure default:true, see note above) ----
     moveit_simple_controllers_yaml = load_yaml(
         'franka_moveit_config', 'config/panda_controllers.yaml'
     )
@@ -154,7 +205,7 @@ def generate_launch_description():
         'publish_transforms_updates': True,
     }
 
-    # Start the actual move_group node/action server
+    # ---- move_group node ----
     run_move_group_node = Node(
         package='moveit_ros_move_group',
         executable='move_group',
@@ -163,14 +214,18 @@ def generate_launch_description():
             robot_description,
             robot_description_semantic,
             kinematics_yaml,
+            robot_description_planning,
+            planning_pipelines_config,
             ompl_planning_pipeline_config,
+            chomp_planning_pipeline_config,
             trajectory_execution,
             moveit_controllers,
             planning_scene_monitor_parameters,
+            use_sim_time,          # <-- add
         ],
     )
 
-    # RViz
+    # ---- RViz ----
     rviz_base = os.path.join(get_package_share_directory('franka_moveit_config'), 'rviz')
     rviz_full_config = os.path.join(rviz_base, 'moveit.rviz')
 
@@ -183,41 +238,41 @@ def generate_launch_description():
         parameters=[
             robot_description,
             robot_description_semantic,
+            planning_pipelines_config,
             ompl_planning_pipeline_config,
+            chomp_planning_pipeline_config,
             kinematics_yaml,
+            robot_description_planning,
+            use_sim_time,          # <-- add
         ],
     )
 
-    # Publish TF
+    # ---- TF ----
     robot_state_publisher = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
-        # name='robot_state_publisher',
         output='both',
-        parameters=[robot_description],
+        parameters=[robot_description, use_sim_time],
     )
 
-    ros2_controllers_path = os.path.join(
-        get_package_share_directory('franka_moveit_config'),
-        'config',
-        'sim_panda_ros_controllers.yaml',
+    # ---- Gazebo Sim (Fortress) ----
+    gz_sim = ExecuteProcess(
+        cmd=['ign', 'gazebo', '-r', 'empty.sdf'],
+        output='screen',
+        on_exit=Shutdown(),
     )
 
-    # Mujoco ros2 server
-    mujoco_ros2_node = IncludeLaunchDescription(
-            FrontendLaunchDescriptionSource(franka_bringup_path + '/launch/sim/launch_mujoco_ros_server.launch'),
-            launch_arguments={
-                'use_sim_time': "true",
-                'modelfile': xml_file,
-                'verbose': "true",
-                'ns': '',
-                'mujoco_plugin_config': ros2_controllers_path
-            }.items()
-        )
+    # Spawn the robot entity from the /robot_description topic
+    spawn_entity = Node(
+        package='ros_gz_sim',
+        executable='create',
+        arguments=['-topic', 'robot_description', '-name', arm_id],
+        output='screen'
+    )
 
-    # Load controllers
+    # ---- Load controllers (same spawner pattern as MuJoCo) ----
     load_controllers = []
-    for controller in ['panda_arm_controller', 'joint_state_broadcaster']:
+    for controller in ['panda_arm_controller', 'joint_state_broadcaster', 'panda_hand_controller']:
         load_controllers += [
             ExecuteProcess(
                 cmd=['ros2 run controller_manager spawner {}'.format(controller)],
@@ -226,7 +281,7 @@ def generate_launch_description():
             )
         ]
 
-    # Warehouse mongodb server
+    # ---- Warehouse mongodb server (unchanged) ----
     db_config = LaunchConfiguration('db')
     mongodb_server_node = Node(
         package='warehouse_ros_mongo',
@@ -240,44 +295,38 @@ def generate_launch_description():
         condition=IfCondition(db_config)
     )
 
-    # Joint state publisher setup
-    jsp_source_list = [concatenate_ns('', 'joint_states', True)]
-    if(load_gripper):
-        jsp_source_list.append(concatenate_ns('', 'panda_gripper_sim_node/joint_states', True))
-
-    joint_state_publisher = Node( # RVIZ dependency
-            package='joint_state_publisher',
-            executable='joint_state_publisher',
-            name='joint_state_publisher',
-            namespace= "",
-            parameters=[
-                {'source_list': jsp_source_list,
-                 'rate': 30}],
+    clock_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        arguments=['/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock'],
+        output='screen',
     )
 
-    
-    # Launch arguments
+    # ---- Launch arguments ----
     arm_id_arg = DeclareLaunchArgument(
         arm_id_param,
         default_value='panda',
         description='The name of the robot. Defaults to panda.')
-    
+
     initial_position_arg = DeclareLaunchArgument(
         initial_positions_param,
-        default_value='"0.0 -0.785 0.0 -2.356 0.0 1.571 0.785"',
-        description='Initial joint positions of the robot. Must be enclosed in quotes, and in pure number.'
-                    'Defaults to the "communication_test" pose.')
+        default_value='0.0,-0.785,0.0,-2.356,0.0,1.571,0.785',
+        description='Initial joint positions, comma-separated, no spaces or quotes.'
+    )
 
     return LaunchDescription(
         [arm_id_arg,
          initial_position_arg,
          db_arg,
+         set_ign_resource_path,
+         set_ign_plugin_path,   # <-- add this
          rviz_node,
          robot_state_publisher,
          run_move_group_node,
-         mujoco_ros2_node,
+         gz_sim,
+         spawn_entity,
          mongodb_server_node,
-         joint_state_publisher
+         clock_bridge,          # <-- add this
          ]
         + load_controllers
     )
