@@ -72,7 +72,7 @@ RUN git clone https://github.com/frankaemika/libfranka.git && \
     cmake --build . --parallel $(nproc) && cmake --install .
 
 # Ensure the developer user owns the libraries we just built as root
-RUN chown -R developer:developer $HOME_DIR/Libraries
+RUN chown -R developer:developer $HOME_DIR
 # *********************************************************
 # ROS2 Workspace & Special Repositories
 # *********************************************************
@@ -82,6 +82,20 @@ WORKDIR $HOME_DIR/$WS_NAME/src
 
 # Install dqrobotics
 RUN add-apt-repository ppa:dqrobotics-dev/release && apt-get update && apt-get install libdqrobotics
+
+# *********************************************************
+# Gazebo Sim (Ignition Fortress)
+# *********************************************************
+# Fortress isn't in ROS's own apt repo (already configured by the ros:humble base
+# image) -- it comes from OSRF's separate Gazebo repo, so it needs its own
+# repo-setup step. No `sudo` needed here: we're still root at this point in the
+# build (USER developer happens near the bottom of this file).
+RUN apt-get update && apt-get install -y lsb-release gnupg && \
+    curl https://packages.osrfoundation.org/gazebo.gpg --output /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] https://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" \
+    | tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null && \
+    apt-get update && apt-get install -y ignition-fortress && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install the package dependencies
 RUN apt-get update -y && apt-get install -y --allow-unauthenticated \
@@ -103,7 +117,7 @@ RUN apt-get update -y && apt-get install -y --allow-unauthenticated \
     ros-humble-angles \
     ros-humble-ros2-control \
     ros-humble-realtime-tools \
-    ros-humble-control-toolbox \    
+    ros-humble-control-toolbox \
     ros-humble-controller-manager \
     ros-humble-hardware-interface \
     ros-humble-hardware-interface-testing \
@@ -132,6 +146,11 @@ RUN apt-get update -y && apt-get install -y --allow-unauthenticated \
     ros-humble-teleop-twist-keyboard \
     ros-humble-joy \
     ros-humble-teleop-twist-joy \
+    ros-humble-ros-gz \
+    ros-humble-gz-ros2-control \
+    ros-humble-ros-gz-sim \
+    ros-humble-ros-gz-bridge \
+    ros-humble-moveit-planners-chomp \
     && rm -rf /var/lib/apt/lists/*
 
 # *********************************************************
